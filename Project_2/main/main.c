@@ -18,10 +18,14 @@
 
 mcp23017_handle_t mcp23017;
 
+
+
 TaskHandle_t Task1;
 TickType_t lastWakeTime1;
 TaskHandle_t Task2;
 TickType_t lastWakeTime2;
+
+
 
 SemaphoreHandle_t buttonMutex;
 uint8_t buttonField = 0x00;
@@ -29,32 +33,25 @@ uint8_t buttonField = 0x00;
 void Rood (void * parameter) 
 {
     lastWakeTime1 = xTaskGetTickCount();
-
+    static int isON = 0;
     while (1)
     {
 
+        xSemaphoreTake(buttonMutex, portMAX_DELAY);
         uint8_t gpioA = mcp23017_read_io(mcp23017, MCP23017_GPIOA);
 
-        char buttonValue = gpioA & 0x01;
-
-        xSemaphoreTake(buttonMutex, portMAX_DELAY);
-        
-        buttonField = buttonValue ? 
-            (buttonField | buttonValue) 
-            : (buttonField & ~buttonValue);
-
-        xSemaphoreGive(buttonMutex);
-
-        if(buttonField & 0x01) 
+        if(gpioA & 0x01 && isON) 
         {
-            mcp23017_write_io(mcp23017, buttonField, MCP23017_GPIOB);
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-            mcp23017_write_io(mcp23017, buttonField, MCP23017_GPIOB);
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-        } else {
-            mcp23017_write_io(mcp23017, buttonField, MCP23017_GPIOB);
-            vTaskDelay(20 / portTICK_PERIOD_MS);
+            mcp23017_write_io(mcp23017, gpioA | 0x01, MCP23017_GPIOB);
+            isON = 0;     
         }
+        else 
+        {
+            mcp23017_write_io(mcp23017, gpioA & ~0x01, MCP23017_GPIOB);
+            isON = 1;
+        }
+        xSemaphoreGive(buttonMutex);
+        vTaskDelay(350 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }
@@ -63,30 +60,25 @@ void Geel (void * parameter)
 {
     lastWakeTime2 = xTaskGetTickCount();
 
+    static int isON = 0;
     while (1)
     {
-        uint8_t gpioA = mcp23017_read_io(mcp23017, MCP23017_GPIOA);
-
-        char buttonValue = gpioA & 0x02;
 
         xSemaphoreTake(buttonMutex, portMAX_DELAY);
-        
-        buttonField = buttonValue ? 
-            (buttonField | buttonValue) 
-            : (buttonField & ~buttonValue);
+        uint8_t gpioA = mcp23017_read_io(mcp23017, MCP23017_GPIOA);
 
-        xSemaphoreGive(buttonMutex);
-
-        if(buttonField & 0x02) 
+        if(gpioA & 0x02 && isON) 
         {
-            mcp23017_write_io(mcp23017, buttonField, MCP23017_GPIOB);
-            vTaskDelay(200 / portTICK_PERIOD_MS);
-            mcp23017_write_io(mcp23017, buttonField, MCP23017_GPIOB);
-            vTaskDelay(200 / portTICK_PERIOD_MS);
-        } else {
-            mcp23017_write_io(mcp23017, buttonField, MCP23017_GPIOB);
-            vTaskDelay(20 / portTICK_PERIOD_MS);
+            mcp23017_write_io(mcp23017, gpioA | 0x02, MCP23017_GPIOB);
+            isON = 0;     
         }
+        else 
+        {
+            mcp23017_write_io(mcp23017, gpioA & ~0x02, MCP23017_GPIOB);
+            isON = 1;
+        }
+        xSemaphoreGive(buttonMutex);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }
